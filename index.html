@@ -12,8 +12,8 @@ const EX=[
 ["Chest + Shoulders",[["Incline barbell press",3,"6–10"],["Chest press machine",3,"8–12"],["High-to-low cable fly",3,"12–15"],["Cable lateral raise",4,"12–20"],["Reverse cable fly",3,"15–20"]]],
 ["Arms + Rear Delts",[["EZ-bar curl",3,"6–10"],["Overhead cable triceps extension",3,"10–12"],["DB hammer curl",3,"10–12"],["Cable pressdown",3,"12–15"],["Cable preacher curl",2,"12–15"],["Rear-delt cable fly",3,"15–20"],["Standing calf raise",3,"12–20"]]],
 ["Recovery + cardio",[]],["Rest",[]]];
-const TABS=[["dashboard","🏠 Dashboard"],["workouts","🏋️ Workouts"],["nutrition","🥩 Nutrition"],["cardio","🚶 Cardio"],["measure","📏 Measurements"],["roadmap","🗓️ Roadmap"],["settings","⚙️ Settings"]];
-const DEF={start:"2026-10-24",targets:{cal:2350,p:190,c:245,f:68},baseline:{weight:198,waist:40,neck:15.5},workouts:[],meals:[],walks:[],measurements:[],drafts:{},selected:0};
+const TABS=[["dashboard","🏠 Dashboard"],["workouts","🏋️ Workouts"],["nutrition","🥩 Nutrition"],["cardio","🚶 Cardio"],["measure","📏 Measurements"],["checkin","📋 Check-in"],["roadmap","🗓️ Roadmap"],["settings","⚙️ Settings"]];
+const DEF={start:"2026-10-24",targets:{cal:2350,p:190,c:245,f:68},baseline:{weight:198,waist:40,neck:15.5},workouts:[],meals:[],walks:[],measurements:[],checkins:[],drafts:{},selected:0};
 let db;
 try{db=JSON.parse(localStorage.getItem("thor-app-v1"))||JSON.parse(JSON.stringify(DEF))}catch(e){db=JSON.parse(JSON.stringify(DEF))}
 for(const k in DEF)if(db[k]==null)db[k]=JSON.parse(JSON.stringify(DEF[k]));
@@ -27,15 +27,15 @@ const bar=(x,y)=>'<div class="bar"><span style="width:'+Math.min(100,100*x/Math.
 function go(t){tab=t;render();scrollTo(0,0)}
 function render(){
 $("nav").innerHTML=TABS.map(([id,label])=>'<button class="'+(tab===id?"sel":"")+'" onclick="go(\''+id+'\')">'+label+'</button>').join("");
-$("root").innerHTML=({dashboard,workouts,nutrition,cardio,measure,roadmap,settings})[tab]();
+$("root").innerHTML=({dashboard,workouts,nutrition,cardio,measure,checkin,roadmap,settings})[tab]();
 }
 function dashboard(){const totals=sum(),start=new Date(db.start+"T00:00:00"),wk=Math.max(1,Math.min(52,Math.floor((new Date(date()+"T00:00:00")-start)/604800000)+1));
-return '<div class="tiles"><section><small>PROTOCOL</small><div class="number">Week '+wk+'</div><small>of 52</small></section><section><small>WEIGHT</small><div class="number">'+esc(recent(db.measurements,"weight",db.baseline.weight))+' lb</div><small>start '+db.baseline.weight+'</small></section><section><small>WAIST</small><div class="number">'+esc(recent(db.measurements,"waist",db.baseline.waist))+'″</div><small>start '+db.baseline.waist+'″</small></section><section><small>LOGGED SESSIONS</small><div class="number">'+db.workouts.length+'</div></section></div><section><h2>Today’s fueling</h2><b>'+Math.round(totals.cal)+' / '+db.targets.cal+' kcal</b>'+bar(totals.cal,db.targets.cal)+'<b>'+Math.round(totals.p)+' / '+db.targets.p+' g protein</b>'+bar(totals.p,db.targets.p)+'<button class="gold" onclick="go(\'nutrition\')">Log a meal</button></section><section><h2>Today’s mission</h2><p>'+esc(EX[(new Date().getDay()+6)%7][0])+'</p><button class="gold" onclick="selectToday()">Open today’s workout</button><div class="callout">Council directive: no crash diets, water cuts or needless depletion. Keep performance, carbohydrates, hydration and recovery high enough to protect muscle fullness.</div></section>'}
+return '<div class="tiles"><section><small>PROTOCOL</small><div class="number">Week '+wk+'</div><small>of 52 · '+esc(currentPhase().label)+'</small></section><section><small>WEIGHT</small><div class="number">'+esc(recent(db.measurements,"weight",db.baseline.weight))+' lb</div><small>start '+db.baseline.weight+'</small></section><section><small>WAIST</small><div class="number">'+esc(recent(db.measurements,"waist",db.baseline.waist))+'″</div><small>start '+db.baseline.waist+'″</small></section><section><small>LOGGED SESSIONS</small><div class="number">'+db.workouts.length+'</div></section></div><section><h2>Today’s fueling</h2><b>'+Math.round(totals.cal)+' / '+db.targets.cal+' kcal</b>'+bar(totals.cal,db.targets.cal)+'<b>'+Math.round(totals.p)+' / '+db.targets.p+' g protein</b>'+bar(totals.p,db.targets.p)+'<button class="gold" onclick="go(\'nutrition\')">Log a meal</button></section><section><h2>Today’s mission</h2><p>'+esc(phaseExercise((new Date().getDay()+6)%7)[0])+'</p><button class="gold" onclick="selectToday()">Open today’s workout</button><div class="callout">Council directive: no crash diets, water cuts or needless depletion. Keep performance, carbohydrates, hydration and recovery high enough to protect muscle fullness.</div></section>'}
 function selectToday(){db.selected=(new Date().getDay()+6)%7;save();go("workouts")}
 function choose(i){db.selected=i;save();render()}
-function workouts(){let day=db.selected,ex=EX[day],id=date()+"-"+day,d=db.drafts[id]||{};return '<section><h2>Training command center</h2><div class="days">'+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((s,i)=>'<button class="'+(i===day?"sel":"")+'" onclick="choose('+i+')">'+s+'</button>').join("")+'</div><h2>'+esc(ex[0])+'</h2><p>60–75 min lifting · start 2–3 reps in reserve · build load only with controlled technique. Avoid symptomatic straining.</p>'+(!ex[1].length?'<div class="callout">Optional easy walk, gentle mobility or rest.</div>':ex[1].map((x,i)=>'<div class="item"><strong>'+esc(x[0])+'</strong> <small>'+x[1]+' × '+esc(x[2])+'</small>'+Array.from({length:x[1]},(_,j)=>{let v=d[i+"_"+j]||{};return '<div class="set"><small>'+(j+1)+'</small><input type="number" aria-label="Weight pounds" placeholder="lb" min="0" value="'+esc(v.w??"")+'" onchange="setval('+i+','+j+',\'w\',this.value)"><input type="number" aria-label="Repetitions" placeholder="reps" min="0" value="'+esc(v.r??"")+'" onchange="setval('+i+','+j+',\'r\',this.value)"><input type="number" aria-label="Reps in reserve" placeholder="RIR" min="0" value="'+esc(v.rir??"")+'" onchange="setval('+i+','+j+',\'rir\',this.value)"><input type="checkbox" aria-label="Completed" '+(v.done?"checked":"")+' onchange="setval('+i+','+j+',\'done\',this.checked)"></div>'}).join("")+'</div>').join("")+'<button class="gold" onclick="finish()">Save completed workout</button>')+'</section><section><h2>Workout history</h2>'+db.workouts.slice(-12).reverse().map(x=>'<div class="entry"><strong>'+esc(x.date)+' · '+esc(x.name)+'</strong><p>'+x.sets.length+' completed sets</p></div>').join("")+'</section>'}
+function workouts(){let day=db.selected,ex=phaseExercise(day),id=date()+"-"+day,d=db.drafts[id]||{};return '<section><h2>Training command center</h2><div class="callout">Active phase: '+esc(currentPhase().label)+' (week '+programWeek()+'). Load suggestions use your previous logged sets. Keep 1–3 reps in reserve and avoid symptoms.</div><div class="days">'+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((s,i)=>'<button class="'+(i===day?"sel":"")+'" onclick="choose('+i+')">'+s+'</button>').join("")+'</div><h2>'+esc(ex[0])+'</h2><p>60–75 min lifting · start 2–3 reps in reserve · build load only with controlled technique. Avoid symptomatic straining.</p>'+(!ex[1].length?'<div class="callout">Optional easy walk, gentle mobility or rest.</div>':ex[1].map((x,i)=>'<div class="item"><strong>'+esc(x[0])+'</strong> <small>'+x[1]+' × '+esc(x[2])+'</small>'+suggestion(x[0],x[2])+Array.from({length:x[1]},(_,j)=>{let v=d[i+"_"+j]||{};return '<div class="set"><small>'+(j+1)+'</small><input type="number" aria-label="Weight pounds" placeholder="lb" min="0" value="'+esc(v.w??"")+'" onchange="setval('+i+','+j+',\'w\',this.value)"><input type="number" aria-label="Repetitions" placeholder="reps" min="0" value="'+esc(v.r??"")+'" onchange="setval('+i+','+j+',\'r\',this.value)"><input type="number" aria-label="Reps in reserve" placeholder="RIR" min="0" value="'+esc(v.rir??"")+'" onchange="setval('+i+','+j+',\'rir\',this.value)"><input type="checkbox" aria-label="Completed" '+(v.done?"checked":"")+' onchange="setval('+i+','+j+',\'done\',this.checked)"></div>'}).join("")+'</div>').join("")+'<button class="gold" onclick="finish()">Save completed workout</button>')+'</section><section><h2>Workout history</h2>'+db.workouts.slice(-12).reverse().map(x=>'<div class="entry"><strong>'+esc(x.date)+' · '+esc(x.name)+'</strong><p>'+x.sets.length+' completed sets</p></div>').join("")+'</section>'}
 function setval(i,j,k,v){let id=date()+"-"+db.selected;db.drafts[id]??={};db.drafts[id][i+"_"+j]??={};db.drafts[id][i+"_"+j][k]=v;save()}
-function finish(){let id=date()+"-"+db.selected,d=db.drafts[id]||{},sets=Object.entries(d).filter(([k,v])=>v.done).map(([k,v])=>({exercise:EX[db.selected][1][Number(k.split("_")[0])][0],weight:num(v.w),reps:num(v.r),rir:num(v.rir)}));if(!sets.length){alert("Check off completed sets first.");return}db.workouts.push({date:date(),name:EX[db.selected][0],sets});delete db.drafts[id];save();alert("Workout logged");render()}
+function finish(){let id=date()+"-"+db.selected,d=db.drafts[id]||{},sets=Object.entries(d).filter(([k,v])=>v.done).map(([k,v])=>({exercise:phaseExercise(db.selected)[1][Number(k.split("_")[0])][0],weight:num(v.w),reps:num(v.r),rir:num(v.rir)}));if(!sets.length){alert("Check off completed sets first.");return}db.workouts.push({date:date(),name:phaseExercise(db.selected)[0],phase:currentPhase().label,sets});delete db.drafts[id];save();alert("Workout logged");render()}
 function inputs(spec){return '<div class="fields">'+spec.map(([name,label,type,value])=>'<div><label>'+label+'</label><input name="'+name+'" type="'+(type||"number")+'" value="'+esc(value??"")+'" '+(type==="text"?'':"")+' required></div>').join("")+'</div>'}
 function nutrition(){let t=sum();return '<div class="tiles">'+[["Calories","cal","kcal"],["Protein","p","g"],["Carbs","c","g"],["Fat","f","g"]].map(([label,key,u])=>'<section><small>'+label+'</small><div class="number">'+Math.round(t[key])+'</div><small>/ '+db.targets[key]+' '+u+'</small>'+bar(t[key],db.targets[key])+'</section>').join("")+'</div><section><h2>Log food</h2><form onsubmit="meal(event)">'+inputs([["date","Date","date",date()],["name","Food","text",""],["cal","Calories","number",""],["p","Protein g","number",""],["c","Carbs g","number",""],["f","Fat g","number",""]])+'<p><button class="gold">Save meal</button></p></form><div class="callout">Starting target ~2,350 kcal; 190 g protein; 245 g carbs; 68 g fat. Keep weekends accountable. Adjust only after sufficient trend data.</div></section><section><h2>Recent meals</h2>'+db.meals.slice(-15).reverse().map(x=>'<div class="entry">'+esc(x.date)+' · <strong>'+esc(x.name)+'</strong> · '+x.cal+' kcal · '+x.p+'P '+x.c+'C '+x.f+'F</div>').join("")+'</section>'}
 function meal(e){e.preventDefault();let f=new FormData(e.target),o={date:f.get("date"),name:f.get("name")};for(let k of ["cal","p","c","f"])o[k]=num(f.get(k));db.meals.push(o);save();render()}
@@ -43,7 +43,7 @@ function cardio(){return '<section><h2>Cardio & recovery log</h2><p>Aim for 20�
 function walk(e){e.preventDefault();db.walks.push(Object.fromEntries(new FormData(e.target).entries()));save();render()}
 function measure(){return '<section><h2>Body measurements</h2><p>Consistent morning measurements; compare 7-day weight averages, waist, strength, and progress photos.</p><form onsubmit="bodylog(event)">'+inputs([["date","Date","date",date()],["weight","Weight lb","number",recent(db.measurements,"weight",198)],["waist","Waist in","number",recent(db.measurements,"waist",40)],["neck","Neck in","number",15.5]])+'<p><button class="gold">Save measurements</button></p></form></section><section><h2>Check-in history</h2>'+db.measurements.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>'<div class="entry"><strong>'+esc(x.date)+'</strong> · '+esc(x.weight)+' lb · waist '+esc(x.waist)+'″ · neck '+esc(x.neck)+'″</div>').join("")+'</section>'}
 function bodylog(e){e.preventDefault();db.measurements.push(Object.fromEntries(new FormData(e.target).entries()));save();render()}
-function roadmap(){return '<section><h2>52-week production plan</h2>'+[["1–8","Foundation","Establish strength, volume and a sustainable fat-loss trend."],["9–16","Forge","Progress overload; prioritize delts, upper chest, back and arms."],["17–28","Build","Reassess calories, strength and physique; maintain or build as appropriate."],["29–40","Refine","Continue muscle development, waist reduction and recovery."],["41–48","Reveal","Incrementally sharpen definition without depleting muscle."],["49–52","Camera-ready","Stable food, hydration, performance and presentation; no extreme dehydration."]].map(x=>'<div class="entry"><strong>Weeks '+x[0]+' · '+x[1]+'</strong><p>'+x[2]+'</p></div>').join("")+'</section>'}
+function roadmap(){return '<section><h2>52-week production plan</h2><div class="callout">Current: '+esc(currentPhase().label)+' · Week '+programWeek()+' / 52. '+esc(currentPhase().focus)+'</div>'+[["1–8","Foundation","Establish strength, volume and a sustainable fat-loss trend."],["9–16","Forge","Progress overload; prioritize delts, upper chest, back and arms."],["17–28","Build","Reassess calories, strength and physique; maintain or build as appropriate."],["29–40","Refine","Continue muscle development, waist reduction and recovery."],["41–48","Reveal","Incrementally sharpen definition without depleting muscle."],["49–52","Camera-ready","Stable food, hydration, performance and presentation; no extreme dehydration."]].map(x=>'<div class="entry"><strong>Weeks '+x[0]+' · '+x[1]+'</strong><p>'+x[2]+'</p></div>').join("")+'</section>'}
 function settings(){return '<section><h2>Targets and timeline</h2><form onsubmit="targets(event)">'+inputs([["start","Start date","date",db.start],["cal","Calories","number",db.targets.cal],["p","Protein g","number",db.targets.p],["c","Carbs g","number",db.targets.c],["f","Fat g","number",db.targets.f]])+'<p><button class="gold">Save settings</button></p></form></section><section><h2>Privacy & backup</h2><p>GitHub Pages hosts only the app code. Your entries stay in this browser, without cloud sync. Export before changing devices or clearing browser data.</p><button class="gold" onclick="backup()">Export JSON backup</button> <button onclick="csv()">Export workout CSV</button><p><label>Import JSON backup <input type="file" accept=".json" onchange="restore(event)"></label></p><button onclick="wipe()">Clear local data</button></section>'}
 function targets(e){e.preventDefault();let f=new FormData(e.target);db.start=f.get("start");for(let k of ["cal","p","c","f"])db.targets[k]=num(f.get(k));save();render()}
 function download(data,name,type){let url=URL.createObjectURL(new Blob([data],{type})),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
@@ -51,6 +51,84 @@ function backup(){download(JSON.stringify(db,null,2),"project-thor-"+date()+".js
 function csv(){let rows=[["date","workout","exercise","weight_lb","reps","rir"]];db.workouts.forEach(x=>x.sets.forEach(s=>rows.push([x.date,x.name,s.exercise,s.weight,s.reps,s.rir])));download(rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n"),"thor-workouts.csv","text/csv")}
 function restore(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.workouts)||!Array.isArray(x.meals)||!Array.isArray(x.measurements))throw Error("Invalid backup");if(confirm("Replace current local records?")){db=x;save();render()}}catch(e){alert(e.message)}};r.readAsText(file)}
 function wipe(){if(confirm("Erase all locally stored logs? Export first.")&&confirm("Confirm permanent local deletion?")){db=JSON.parse(JSON.stringify(DEF));save();render()}}
+
+const PHASES=[
+ {from:1,to:8,label:"Foundation",sets:0,rep:"baseline",focus:"Retain strength; establish a measured waist-reduction trend."},
+ {from:9,to:16,label:"Forge",sets:0,rep:"strength",focus:"Heavy hypertrophy with upper chest, back and shoulders prioritized."},
+ {from:17,to:28,label:"Build",sets:1,rep:"hypertrophy",focus:"Muscle fullness and progressive volume within recovery capacity."},
+ {from:29,to:40,label:"Refine",sets:0,rep:"hypertrophy",focus:"Improved proportions with consistent conditioning."},
+ {from:41,to:48,label:"Reveal",sets:-1,rep:"baseline",focus:"Maintain strength as definition improves; avoid depletion."},
+ {from:49,to:52,label:"Camera-ready",sets:-1,rep:"baseline",focus:"Maintain hydration, strength, and stable appearance; no crash cuts."}
+];
+function programWeek(){const a=new Date(db.start+"T12:00:00"),b=new Date(date()+"T12:00:00");return Math.max(1,Math.min(52,Math.floor((b-a)/604800000)+1))}
+function currentPhase(){return PHASES.find(x=>programWeek()>=x.from&&programWeek()<=x.to)||PHASES[0]}
+function phaseExercise(day){
+ const p=currentPhase(),base=EX[day]; if(day>=5)return base;
+ const sets=base[1].map((x,i)=>{
+ let n=x[1],reps=x[2];
+ // Set additions only for the first two movements; cap volume conservatively.
+ if(i<2)n=Math.max(2,Math.min(5,n+p.sets));
+ if(p.rep==="strength" && i<2)reps="5–8";
+ if(p.rep==="hypertrophy" && i<2)reps="8–12";
+ return [x[0],n,reps]
+ });
+ return [base[0],sets]
+}
+function suggestion(name,range){
+ const matches=db.workouts.slice().reverse().flatMap(w=>w.sets||[]).filter(s=>s.exercise===name&&num(s.reps)>0);
+ if(!matches.length)return '<div class="muted">First logged session — establish your starting weight.</div>';
+ const previous=matches[0],all=matches.slice(0,6),top=Number((range.match(/\d+/g)||[]).slice(-1)[0]||10);
+ const adequate=all.length>=2&&all.slice(0,2).every(s=>num(s.reps)>=top&&num(s.rir)>=1);
+ const next=adequate?Math.round((num(previous.weight)+((/curl|fly|raise|extension|pressdown/i.test(name))?2.5:5))*2)/2:num(previous.weight);
+ return '<div class="muted">Last logged: '+esc(previous.weight)+' lb × '+esc(previous.reps)+' reps · RIR '+esc(previous.rir??"—")+
+ '. '+(adequate?'Possible next load: '+next+' lb if all prescribed sets stay controlled.':'Repeat approximately '+esc(previous.weight)+' lb and build clean reps before increasing.')+'</div>'
+}
+function svgTrend(points,key,color){
+ const arr=points.slice().sort((a,b)=>a.date.localeCompare(b.date)).filter(x=>Number.isFinite(Number(x[key]))&&num(x[key])>0).slice(-18);
+ if(arr.length<2)return '<p class="muted">Add at least two measurements to display a trend.</p>';
+ const vals=arr.map(x=>num(x[key])),lo=Math.min(...vals),hi=Math.max(...vals),span=Math.max(1,hi-lo);
+ const coords=vals.map((v,i)=>(20+(i*320/(vals.length-1))).toFixed(1)+","+(120-(v-lo)*90/span).toFixed(1)).join(" ");
+ return '<svg role="img" aria-label="'+esc(key)+' trend" viewBox="0 0 360 145" style="max-width:100%;height:auto"><line x1="20" y1="125" x2="345" y2="125" stroke="#607186"/><polyline points="'+coords+'" fill="none" stroke="'+color+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><text x="18" y="15" font-size="12" fill="#b9c8d7">'+hi.toFixed(1)+'</text><text x="18" y="140" font-size="12" fill="#b9c8d7">'+lo.toFixed(1)+'</text></svg><p class="muted">'+arr.length+' logged points · '+esc(arr[0].date)+' to '+esc(arr.at(-1).date)+'</p>'
+}
+function strengthTrend(){
+ const groups={};
+ db.workouts.forEach(w=>(w.sets||[]).forEach(s=>{if(!groups[s.exercise])groups[s.exercise]=[];groups[s.exercise].push({date:w.date,weight:num(s.weight),reps:num(s.reps)})}));
+ const names=Object.keys(groups).sort((a,b)=>groups[b].length-groups[a].length).slice(0,4);
+ return names.length?names.map(name=>{
+ const arr=groups[name],best=arr.reduce((a,b)=>Math.max(a,b.weight*(1+b.reps/30)),0);
+ return '<div class="entry"><strong>'+esc(name)+'</strong><div class="muted">Estimated best performance index: '+best.toFixed(0)+' lb (Epley estimate, not a tested 1RM) · '+arr.length+' sets logged</div></div>'
+ }).join(""):'<p class="muted">Save workouts to see strength summaries.</p>'
+}
+function checkin(){
+ let last=db.checkins.slice().sort((a,b)=>b.date.localeCompare(a.date));
+ return '<section><h2>Weekly coaching check-in</h2><p>Use weight trend, waist, workout quality and recovery together. Recommendations are starting guidelines, not automatic medical or dietary prescriptions.</p><form onsubmit="saveCheckin(event)">'+inputs([
+ ["date","Review date","date",date()],
+ ["weight","7-day average weight (lb)","number",recent(db.measurements,"weight",198)],
+ ["waist","Waist (in)","number",recent(db.measurements,"waist",40)],
+ ["performance","Training performance 1–5","number",3],
+ ["recovery","Recovery 1–5","number",3],
+ ["adherence","Nutrition consistency %","number",90]
+ ])+'<label>Notes (optional)</label><textarea name="notes" rows="2"></textarea><p><button class="gold">Save weekly check-in</button></p></form>'+
+ (last.length?'<div class="callout">'+checkinAdvice(last[0],last[1])+'</div>':'<div class="callout">Your first check-in establishes the comparison baseline.</div>')+'</section>'+
+ '<div class="tiles"><section><h2>Weight trend</h2>'+svgTrend(db.checkins.length>1?db.checkins:db.measurements,"weight","#f6a849")+'</section><section><h2>Waist trend</h2>'+svgTrend(db.checkins.length>1?db.checkins:db.measurements,"waist","#8ae4c1")+'</section></div>'+
+ '<section><h2>Strength snapshots</h2>'+strengthTrend()+'</section>'+
+ '<section><h2>Check-in history</h2>'+last.slice(0,12).map(c=>'<div class="entry"><strong>'+esc(c.date)+'</strong> · '+esc(c.weight)+' lb · '+esc(c.waist)+'″ waist · training '+esc(c.performance)+'/5 · recovery '+esc(c.recovery)+'/5</div>').join("")+'</section>'
+}
+function saveCheckin(e){
+ e.preventDefault();let f=new FormData(e.target),x=Object.fromEntries(f.entries());
+ if(num(x.weight)<=0||num(x.waist)<=0||num(x.performance)<1||num(x.performance)>5||num(x.recovery)<1||num(x.recovery)>5||num(x.adherence)<0||num(x.adherence)>100){alert("Please check your entered measurements and ratings.");return}
+ db.checkins.push(x);save();render()
+}
+function checkinAdvice(a,b){
+ if(!b)return 'Baseline saved. Compare it with your next weekly check-in before deciding on changes.';
+ const days=Math.max(1,(new Date(a.date)-new Date(b.date))/86400000),rate=(num(b.weight)-num(a.weight))*7/days;
+ if(num(a.adherence)<80)return 'Prioritize logging consistency before adjusting calories or training volume.';
+ if(num(a.recovery)<=2||num(a.performance)<=2)return 'Recovery or performance is low. Review sleep, fatigue, and session volume; avoid increasing intensity automatically.';
+ if(rate>1.2)return 'Weight is declining rapidly. Review strength, energy, fullness and hydration; consider a smaller deficit.';
+ if(rate<0.1&&num(a.waist)>=num(b.waist)&&days>=10)return 'Weight and waist trends appear stalled. Confirm intake and activity before considering a modest adjustment.';
+ return 'Progress appears compatible with a gradual transformation. Maintain current approach and keep tracking.'
+}
+
 window.addEventListener("error",e=>{document.getElementById("root").insertAdjacentHTML("afterbegin",'<section class="danger">App error: '+esc(e.message)+'</section>')});
 render();
 </script></body></html>
