@@ -2,7 +2,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><meta name="apple-mobile-web-app-capable" content="yes"><title>Project Thor</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b101a;color:#f1f4fa;font:15px system-ui,-apple-system,sans-serif}main{max-width:1050px;margin:auto;padding:15px 15px 65px}header{padding:24px 18px;border-radius:18px;background:linear-gradient(130deg,#683f21,#242b3f 75%);margin-bottom:15px}h1{font-size:27px;margin:5px 0}h2{font-size:18px;margin:0 0 12px}p{color:#b9c8d7}small,.muted{color:#a7b9ce}nav{position:sticky;top:0;background:#0b101af2;display:flex;overflow-x:auto;gap:7px;padding:12px 0;z-index:10}button{background:#243249;color:white;border:1px solid #45536a;padding:10px 14px;border-radius:10px;font-weight:650;cursor:pointer;white-space:nowrap}button.sel,.gold{background:#f6a849!important;color:#17130f!important;border-color:#f6a849}section{background:#192333;border:1px solid #344152;padding:16px;border-radius:15px;margin-bottom:13px}.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.tiles section{min-width:0}.number{font-size:27px;font-weight:850;color:#f6a849}.flex{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.days{display:flex;overflow-x:auto;gap:6px;margin-bottom:15px}.days button{flex:1}.item{border-top:1px solid #3a4859;padding:14px 0}.set{display:grid;grid-template-columns:26px 1fr 1fr 1fr 30px;gap:6px;align-items:center;margin:7px 0}input,select,textarea{background:#0e1725;color:white;border:1px solid #506076;padding:10px;border-radius:8px;width:100%;min-width:0;font:inherit}input[type=checkbox]{width:20px;height:20px}.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}label{display:block;color:#b9cadc;font-size:12px;margin:8px 0 4px}.bar{height:8px;background:#0d1420;border-radius:8px;overflow:hidden;margin:6px 0 12px}.bar span{display:block;background:#f6a849;height:100%}.entry{padding:9px 0;border-bottom:1px solid #344152}.callout{border-left:3px solid #f6a849;padding:11px;background:#f6a84912;border-radius:4px;margin:12px 0}.danger{color:#ffb6b6}@media(max-width:660px){.tiles{grid-template-columns:repeat(2,1fr)}.fields{grid-template-columns:repeat(2,1fr)}.set{gap:3px}.set input{padding:7px 4px;font-size:13px}}
-</style></head><body><main><header><small>⚡ THE 52-WEEK WARRIOR FORGE</small><h1>PROJECT THOR</h1><div>Full muscles · Smaller waist · Strength preserved</div></header><nav id="nav"></nav><div id="storage-alert" class="danger" role="alert"></div><div id="root">Loading Project Thor…</div><small>Data stays in this browser/device. Export regular backups. This app does not synchronize across devices.</small></main>
+</style></head><body><main><header><small>⚡ THE 52-WEEK WARRIOR FORGE</small><h1>PROJECT THOR</h1><div>Full muscles · Smaller waist · Strength preserved</div></header><nav id="nav"></nav><div id="storage-alert" class="danger" role="alert"></div><div id="root">Loading Project Thor…</div><small>⚡ Local autosave is immediate. Cloud backup is available after sign-in; verify the cloud sync status in Settings. Export JSON backups regularly.</small></main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.57.0/dist/umd/supabase.min.js"></script>
 <script>
 "use strict";
 const EX=[
@@ -33,6 +34,7 @@ const num=x=>Number(x)||0, save=()=>{
   const payload=JSON.stringify(db);
   localStorage.setItem("thor-app-v1",payload);
   if(localStorage.getItem("thor-app-v1")!==payload)throw Error("Read-back verification failed");
+  queueCloud();
   return true;
  }catch(e){
   storageIssue="Storage verification failed: "+String(e.message||e);
@@ -110,7 +112,7 @@ function walk(e){e.preventDefault();db.walks.push(Object.fromEntries(new FormDat
 function measure(){return '<section><h2>Body measurements</h2><p>Consistent morning measurements; compare 7-day weight averages, waist, strength, and progress photos.</p><form onsubmit="bodylog(event)">'+inputs([["date","Date","date",date()],["weight","Weight lb","number",recent(db.measurements,"weight",198)],["waist","Waist in","number",recent(db.measurements,"waist",40)],["neck","Neck in","number",15.5]])+'<p><button class="gold">Save measurements</button></p></form></section><section><h2>Check-in history</h2>'+db.measurements.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>'<div class="entry"><strong>'+esc(x.date)+'</strong> · '+esc(x.weight)+' lb · waist '+esc(x.waist)+'″ · neck '+esc(x.neck)+'″</div>').join("")+'</section>'}
 function bodylog(e){e.preventDefault();db.measurements.push(Object.fromEntries(new FormData(e.target).entries()));save();render()}
 function roadmap(){return '<section><h2>52-week production plan</h2><div class="callout">Current: '+esc(currentPhase().label)+' · Week '+programWeek()+' / 52. '+esc(currentPhase().focus)+'</div>'+[["1–8","Foundation","Establish strength, volume and a sustainable fat-loss trend."],["9–16","Forge","Progress overload; prioritize delts, upper chest, back and arms."],["17–28","Build","Reassess calories, strength and physique; maintain or build as appropriate."],["29–40","Refine","Continue muscle development, waist reduction and recovery."],["41–48","Reveal","Incrementally sharpen definition without depleting muscle."],["49–52","Camera-ready","Stable food, hydration, performance and presentation; no extreme dehydration."]].map(x=>'<div class="entry"><strong>Weeks '+x[0]+' · '+x[1]+'</strong><p>'+x[2]+'</p></div>').join("")+'</section>'}
-function settings(){return '<section><h2>Targets and timeline</h2><form onsubmit="targets(event)">'+inputs([["start","Start date","date",db.start],["cal","Calories","number",db.targets.cal],["p","Protein g","number",db.targets.p],["c","Carbs g","number",db.targets.c],["f","Fat g","number",db.targets.f]])+'<p><button class="gold">Save settings</button></p></form></section><section><h2>Privacy & backup</h2><div class="callout" id="diagnostic">Storage: '+esc(storageIssue||'No errors reported')+' · Recorded workouts: '+db.workouts.length+' · Unfinished date entries: '+Object.keys(db.drafts).length+'</div><button onclick="verifyPersistence()">Test save and read-back</button><p>GitHub Pages hosts only the app code. Your entries stay in this browser, without cloud sync. Export before changing devices or clearing browser data.</p><button class="gold" onclick="backup()">Export JSON backup</button> <button onclick="csv()">Export workout CSV</button><p><label>Import JSON backup <input type="file" accept=".json" onchange="restore(event)"></label></p><button onclick="wipe()">Clear local data</button></section>'}
+function settings(){return cloudSettings()+'<section><h2>Targets and timeline</h2><form onsubmit="targets(event)">'+inputs([["start","Start date","date",db.start],["cal","Calories","number",db.targets.cal],["p","Protein g","number",db.targets.p],["c","Carbs g","number",db.targets.c],["f","Fat g","number",db.targets.f]])+'<p><button class="gold">Save settings</button></p></form></section><section><h2>Privacy & backup</h2><div class="callout" id="diagnostic">Storage: '+esc(storageIssue||'No errors reported')+' · Recorded workouts: '+db.workouts.length+' · Unfinished date entries: '+Object.keys(db.drafts).length+'</div><button onclick="verifyPersistence()">Test save and read-back</button><p>GitHub Pages hosts only the app code. Local records are stored in this browser; signed-in records can also sync to Supabase. Export before clearing browser data and verify cloud status before switching devices.</p><button class="gold" onclick="backup()">Export JSON backup</button> <button onclick="csv()">Export workout CSV</button><p><label>Import JSON backup <input type="file" accept=".json" onchange="restore(event)"></label></p><button onclick="wipe()">Clear local data</button></section>'}
 function targets(e){e.preventDefault();let f=new FormData(e.target);db.start=f.get("start");for(let k of ["cal","p","c","f"])db.targets[k]=num(f.get(k));save();render()}
 function download(data,name,type){let url=URL.createObjectURL(new Blob([data],{type})),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
 function verifyPersistence(){
@@ -120,7 +122,7 @@ function verifyPersistence(){
 function backup(){download(JSON.stringify(db,null,2),"project-thor-"+date()+".json","application/json")}
 function csv(){let rows=[["date","workout","exercise","weight_lb","reps","rir"]];db.workouts.forEach(x=>x.sets.forEach(s=>rows.push([x.date,x.name,s.exercise,s.weight,s.reps,s.rir])));download(rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n"),"thor-workouts.csv","text/csv")}
 function restore(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.workouts)||!Array.isArray(x.meals)||!Array.isArray(x.measurements))throw Error("Invalid backup");if(confirm("Replace current local records?")){db=x;for(const k in DEF)if(db[k]==null)db[k]=JSON.parse(JSON.stringify(DEF[k]));save();render()}}catch(e){alert(e.message)}};r.readAsText(file)}
-function wipe(){if(confirm("Erase all locally stored logs? Export first.")&&confirm("Confirm permanent local deletion?")){db=JSON.parse(JSON.stringify(DEF));save();render()}}
+function wipe(){alert("For your safety, local data deletion is disabled while cloud backup is being introduced. Export a JSON backup before requesting a reset.")}
 
 const PHASES=[
  {from:1,to:8,label:"Foundation",sets:0,rep:"baseline",focus:"Retain strength; establish a measured waist-reduction trend."},
@@ -199,6 +201,157 @@ function checkinAdvice(a,b){
  return 'Progress appears compatible with a gradual transformation. Maintain current approach and keep tracking.'
 }
 
+
+const CLOUD_URL="https://ctcovjeowdueueukdktr.supabase.co";
+const CLOUD_KEY="sb_publishable_pA8e4POH3TQ2kRUukJgv2w_pqJs4iXt";
+let cloudClient=null,cloudUser=null,cloudReady=false,cloudBusy=false,cloudTimer=null,cloudQueued=false;
+let cloudStatus="Not signed in — local device only",cloudLastSync="",cloudChain=Promise.resolve();
+let cloudInitStarted=false;
+function cloudLabel(msg){cloudStatus=msg;const el=document.getElementById("cloud-live");if(el)el.textContent=msg;}
+function cloudSettings(){
+ return '<section><h2>☁️ Cloud backup and sign-in</h2>'+
+ '<div class="callout"><strong id="cloud-live">'+esc(cloudStatus)+'</strong>'+(cloudLastSync?'<p>Last verified sync: '+esc(cloudLastSync)+'</p>':'')+
+ '<p>Cloud data is private to your account. Changes save to this device first; cloud syncing requires an internet connection and sign-in.</p></div>'+
+ (cloudUser?'<p>Signed in as <strong>'+esc(cloudUser.email||"User")+'</strong></p><button class="gold" onclick="cloudSyncNow()">Sync now</button> <button onclick="cloudSignOut()">Sign out</button>':
+ '<form onsubmit="cloudSignIn(event)"><label>Email</label><input name="email" type="email" autocomplete="email" required placeholder="Your email"><label>Password</label><input name="password" type="password" autocomplete="current-password" minlength="6" required placeholder="At least 6 characters"><p><button class="gold" type="submit">Sign in</button> <button type="button" onclick="cloudSignUp()">Create account</button></p></form>'+
+ '<p class="muted">A new account may require email confirmation. Follow the verification email, then return here to sign in.</p>')+
+ '<p class="muted">For best reliability, use one browser until cloud status reads Synced. Do not clear Safari data while uploads are pending.</p></section>';
+}
+async function initCloud(){
+ if(cloudInitStarted)return;cloudInitStarted=true;
+ try{
+  if(!window.supabase || !window.supabase.createClient){cloudLabel("Cloud library unavailable — local saving only. Check internet connection and reload.");return}
+  cloudClient=window.supabase.createClient(CLOUD_URL,CLOUD_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+  const {data,error}=await cloudClient.auth.getSession();
+  if(error)throw error;
+  cloudClient.auth.onAuthStateChange((event,session)=>{
+    const uid=session?.user?.id||null, old=cloudUser?.id||null;
+    if(event==="SIGNED_OUT"){cloudUser=null;cloudReady=false;cloudLabel("Signed out — local device only");if(tab==="settings")render();return}
+    if(uid && uid!==old){cloudUser=session.user;cloudReady=false;cloudLabel("Signed in — loading cloud history");setTimeout(()=>cloudInitializeUser(uid),0)}
+  });
+  if(data?.session?.user){cloudUser=data.session.user;cloudLabel("Signed in — loading cloud history");await cloudInitializeUser(data.session.user.id)}
+  else cloudLabel("Not signed in — local device only");
+ }catch(e){cloudLabel("Cloud initialization failed: "+String(e.message||e)+". Local saving still works.");}
+ if(tab==="settings")render();
+}
+async function cloudSignIn(event){
+ event.preventDefault();
+ if(!cloudClient)return alert("Cloud library unavailable. Reload while connected to internet.");
+ const f=new FormData(event.target);
+ cloudLabel("Signing in…");
+ const {error}=await cloudClient.auth.signInWithPassword({email:String(f.get("email")).trim(),password:String(f.get("password"))});
+ if(error){cloudLabel("Sign-in failed: "+error.message);alert(error.message)}
+}
+async function cloudSignUp(){
+ if(!cloudClient)return alert("Cloud library unavailable. Reload while connected to internet.");
+ const form=document.querySelector('form[onsubmit="cloudSignIn(event)"]');
+ if(!form)return;
+ const f=new FormData(form);
+ const email=String(f.get("email")||"").trim(),password=String(f.get("password")||"");
+ if(!email || password.length<6)return alert("Enter your email and a password of at least 6 characters.");
+ const {data,error}=await cloudClient.auth.signUp({email,password,options:{emailRedirectTo:"https://itachi-85.github.io/Project-Thor-/"}});
+ if(error)return alert(error.message);
+ alert(data?.session?"Account created and signed in. Cloud synchronization will begin.":"Account created. Check your email for verification. If the link leads elsewhere, configure the Project Thor URL in Supabase Authentication → URL Configuration.");
+}
+async function cloudSignOut(){
+ if(!cloudClient)return;
+ if(!confirm("Sign out of cloud backup? Unsynced changes will stay on this device."))return;
+ const {error}=await cloudClient.auth.signOut();if(error)alert(error.message);
+}
+function cloneCloud(o){return JSON.parse(JSON.stringify(o||{}))}
+function cloudFingerprint(item){
+ if(item.id!=null)return String(item.id);
+ if(item.date && item.name)return String(item.date)+"|"+String(item.name);
+ return JSON.stringify(item);
+}
+function mergeSessions(a,b){
+ const newer=(Date.parse(b.updatedAt||"")||0)>=(Date.parse(a.updatedAt||"")||0)?b:a;
+ const older=newer===b?a:b,out=cloneCloud(newer);
+ const combined=new Map();
+ for(const s of older.sets||[])combined.set(String(s.exercise)+"|"+String(s.set??0),cloneCloud(s));
+ for(const s of newer.sets||[])combined.set(String(s.exercise)+"|"+String(s.set??0),cloneCloud(s));
+ out.sets=[...combined.values()];
+ return out;
+}
+function mergeCloudState(remote,local){
+ const a=cloneCloud(remote),b=cloneCloud(local),out=cloneCloud(DEF);
+ const bNew=(Number(b._editedAt)||0)>=(Number(a._editedAt)||0);
+ Object.assign(out,bNew?a:b);
+ out.targets={...DEF.targets,...(bNew?a.targets:b.targets),...(bNew?b.targets:a.targets)};
+ out.baseline={...DEF.baseline,...(bNew?a.baseline:b.baseline),...(bNew?b.baseline:a.baseline)};
+ out.drafts={...(a.drafts||{})};
+ for(const [key,record] of Object.entries(b.drafts||{})){
+  const target=out.drafts[key]||{};
+  out.drafts[key]={...target,...record};
+ }
+ for(const key of ["workouts","meals","walks","measurements","checkins"]){
+  const records=new Map();
+  for(const item of a[key]||[])records.set(cloudFingerprint(item),cloneCloud(item));
+  for(const item of b[key]||[]){
+   const id=cloudFingerprint(item),previous=records.get(id);
+   records.set(id,key==="workouts"&&previous?mergeSessions(previous,item):cloneCloud(item));
+  }
+  out[key]=[...records.values()];
+ }
+ out._editedAt=Math.max(Number(a._editedAt)||0,Number(b._editedAt)||0);
+ return out;
+}
+async function cloudInitializeUser(userId){
+ if(!cloudClient||!cloudUser||cloudUser.id!==userId||storageIssue)return;
+ cloudReady=false;
+ try{
+  cloudLabel("Loading cloud history and merging local entries…");
+  const {data,error}=await cloudClient.from("thor_documents").select("content,revision").eq("owner_id",userId).eq("document_id","app/state").maybeSingle();
+  if(error)throw error;
+  db=mergeCloudState(data?.content||{},db);
+  if(!save())throw Error("Local storage is not writable. Export your data.");
+  render();
+  cloudReady=true;
+  await cloudPush();
+ }catch(e){cloudReady=false;cloudLabel("Cloud restore failed: "+String(e.message||e)+". Local records remain available.")}
+}
+function queueCloud(){
+ db._editedAt=Date.now();
+ if(!cloudReady||!cloudUser)return;
+ cloudQueued=true;
+ clearTimeout(cloudTimer);
+ cloudTimer=setTimeout(()=>{cloudChain=cloudChain.then(()=>cloudPush()).catch(e=>cloudLabel("Cloud error: "+String(e.message||e)));},650);
+ cloudLabel("Saved on device — cloud sync pending");
+}
+async function cloudPush(){
+ if(!cloudClient||!cloudUser||!cloudReady)return;
+ const uid=cloudUser.id;
+ cloudQueued=false;cloudBusy=true;
+ cloudLabel("Syncing to cloud…");
+ try{
+  const {data,error}=await cloudClient.from("thor_documents").select("content,revision").eq("owner_id",uid).eq("document_id","app/state").maybeSingle();
+  if(error)throw error;
+  const merged=mergeCloudState(data?.content||{},db);
+  const {error:writeError}=await cloudClient.from("thor_documents").upsert({
+   owner_id:uid,document_id:"app/state",content:cloneCloud(merged),
+   revision:(Number(data?.revision)||0)+1,updated_at:new Date().toISOString()
+  },{onConflict:"owner_id,document_id"});
+  if(writeError)throw writeError;
+  db=mergeCloudState(db,merged);
+  if(!save())throw Error("Could not verify local copy after cloud sync");
+  cloudLastSync=new Date().toLocaleString();
+  cloudLabel("✓ Synced to cloud — "+cloudLastSync);
+  if(tab==="settings")render();
+ }catch(e){
+  cloudQueued=true;
+  cloudLabel("⚠ Not synced: "+String(e.message||e)+". Data remains local; retry Sync now.");
+ }finally{
+  cloudBusy=false;
+ }
+}
+async function cloudSyncNow(){
+ if(!cloudUser)return alert("Sign in first.");
+ cloudReady=true;
+ cloudChain=cloudChain.then(()=>cloudPush());await cloudChain;
+}
+window.addEventListener("online",()=>{if(cloudReady&&cloudUser)cloudSyncNow()});
+
 window.addEventListener("error",e=>{document.getElementById("root").insertAdjacentHTML("afterbegin",'<section class="danger">App error: '+esc(e.message)+'</section>')});
 render();
+initCloud();
 </script></body></html>
