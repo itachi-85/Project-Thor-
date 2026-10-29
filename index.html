@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#111827"><meta name="apple-mobile-web-app-capable" content="yes"><title>Project Thor</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#0b101a;color:#f1f4fa;font:15px system-ui,-apple-system,sans-serif}main{max-width:1050px;margin:auto;padding:15px 15px 65px}header{padding:24px 18px;border-radius:18px;background:linear-gradient(130deg,#683f21,#242b3f 75%);margin-bottom:15px}h1{font-size:27px;margin:5px 0}h2{font-size:18px;margin:0 0 12px}p{color:#b9c8d7}small,.muted{color:#a7b9ce}nav{position:sticky;top:0;background:#0b101af2;display:flex;overflow-x:auto;gap:7px;padding:12px 0;z-index:10}button{background:#243249;color:white;border:1px solid #45536a;padding:10px 14px;border-radius:10px;font-weight:650;cursor:pointer;white-space:nowrap}button.sel,.gold{background:#f6a849!important;color:#17130f!important;border-color:#f6a849}section{background:#192333;border:1px solid #344152;padding:16px;border-radius:15px;margin-bottom:13px}.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.tiles section{min-width:0}.number{font-size:27px;font-weight:850;color:#f6a849}.flex{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.days{display:flex;overflow-x:auto;gap:6px;margin-bottom:15px}.days button{flex:1}.item{border-top:1px solid #3a4859;padding:14px 0}.set{display:grid;grid-template-columns:26px 1fr 1fr 1fr 30px;gap:6px;align-items:center;margin:7px 0}input,select,textarea{background:#0e1725;color:white;border:1px solid #506076;padding:10px;border-radius:8px;width:100%;min-width:0;font:inherit}input[type=checkbox]{width:20px;height:20px}.fields{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}label{display:block;color:#b9cadc;font-size:12px;margin:8px 0 4px}.bar{height:8px;background:#0d1420;border-radius:8px;overflow:hidden;margin:6px 0 12px}.bar span{display:block;background:#f6a849;height:100%}.entry{padding:9px 0;border-bottom:1px solid #344152}.callout{border-left:3px solid #f6a849;padding:11px;background:#f6a84912;border-radius:4px;margin:12px 0}.danger{color:#ffb6b6}@media(max-width:660px){.tiles{grid-template-columns:repeat(2,1fr)}.fields{grid-template-columns:repeat(2,1fr)}.set{gap:3px}.set input{padding:7px 4px;font-size:13px}}
-</style></head><body><main><header><small>⚡ THE 52-WEEK WARRIOR FORGE</small><h1>PROJECT THOR</h1><div>Full muscles · Smaller waist · Strength preserved</div></header><nav id="nav"></nav><div id="root">Loading Project Thor…</div><small>Data stays in this browser/device. Export regular backups. This app does not synchronize across devices.</small></main>
+</style></head><body><main><header><small>⚡ THE 52-WEEK WARRIOR FORGE</small><h1>PROJECT THOR</h1><div>Full muscles · Smaller waist · Strength preserved</div></header><nav id="nav"></nav><div id="storage-alert" class="danger" role="alert"></div><div id="root">Loading Project Thor…</div><small>Data stays in this browser/device. Export regular backups. This app does not synchronize across devices.</small></main>
 <script>
 "use strict";
 const EX=[
@@ -14,21 +14,40 @@ const EX=[
 ["Recovery + cardio",[]],["Rest",[]]];
 const TABS=[["dashboard","🏠 Dashboard"],["workouts","🏋️ Workouts"],["nutrition","🥩 Nutrition"],["cardio","🚶 Cardio"],["measure","📏 Measurements"],["checkin","📋 Check-in"],["roadmap","🗓️ Roadmap"],["settings","⚙️ Settings"]];
 const DEF={start:"2026-10-24",targets:{cal:2350,p:190,c:245,f:68},baseline:{weight:198,waist:40,neck:15.5},workouts:[],meals:[],walks:[],measurements:[],checkins:[],drafts:{},selected:0};
-let db;
-try{db=JSON.parse(localStorage.getItem("thor-app-v1"))||JSON.parse(JSON.stringify(DEF))}catch(e){db=JSON.parse(JSON.stringify(DEF))}
+let db,storageIssue="";
+try{
+ const raw=localStorage.getItem("thor-app-v1");
+ db=raw?JSON.parse(raw):JSON.parse(JSON.stringify(DEF));
+ if(!db||typeof db!=="object")throw Error("Invalid stored data");
+}catch(e){
+ storageIssue="Unable to read existing workout records: "+String(e.message||e)+". Do not enter new data until you export or recover your previous storage.";
+ db=JSON.parse(JSON.stringify(DEF));
+}
 for(const k in DEF)if(db[k]==null)db[k]=JSON.parse(JSON.stringify(DEF[k]));
 let tab="dashboard";
 const $=id=>document.getElementById(id), date=()=>{let d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const num=x=>Number(x)||0, save=()=>{
- try{localStorage.setItem("thor-app-v1",JSON.stringify(db));return true}
- catch(e){alert("Workout storage failed on this browser. Export a backup in Settings; do not close this page until your data is safe.");return false}
+ if(storageIssue){alert(storageIssue);return false}
+ try{
+  const payload=JSON.stringify(db);
+  localStorage.setItem("thor-app-v1",payload);
+  if(localStorage.getItem("thor-app-v1")!==payload)throw Error("Read-back verification failed");
+  return true;
+ }catch(e){
+  storageIssue="Storage verification failed: "+String(e.message||e);
+  const banner=document.getElementById("storage-alert");
+  if(banner)banner.textContent=storageIssue;
+  alert(storageIssue+". Please export your backup in Settings.");
+  return false;
+ }
 };
 const recent=(arr,key,original)=>arr.length?arr.slice().sort((a,b)=>a.date.localeCompare(b.date)).at(-1)[key]:original;
 const sum=()=>db.meals.filter(x=>x.date===date()).reduce((a,x)=>{for(const k of ["cal","p","c","f"])a[k]+=num(x[k]);return a},{cal:0,p:0,c:0,f:0});
 const bar=(x,y)=>'<div class="bar"><span style="width:'+Math.min(100,100*x/Math.max(1,y))+'%"></span></div>';
 function go(t){tab=t;render();scrollTo(0,0)}
 function render(){
+$("storage-alert").textContent=storageIssue;
 $("nav").innerHTML=TABS.map(([id,label])=>'<button class="'+(tab===id?"sel":"")+'" onclick="go(\''+id+'\')">'+label+'</button>').join("");
 $("root").innerHTML=({dashboard,workouts,nutrition,cardio,measure,checkin,roadmap,settings})[tab]();
 }
@@ -39,13 +58,24 @@ function choose(i){db.selected=i;save();render()}
 function workouts(){let day=db.selected,ex=phaseExercise(day),id=selectedWorkoutDate+"-"+day,d=db.drafts[id]||{};
 let recovered=Object.entries(db.drafts).filter(([key,v])=>Object.keys(v||{}).length && key!==id).sort((a,b)=>b[0].localeCompare(a[0]));
 let tracked=db.workouts.slice().sort((a,b)=>b.date.localeCompare(a.date));
-return '<section><h2>Training command center</h2><div class="callout">✅ Every weight, rep and RIR change is saved automatically on this device. Tap a previous workout below to view and recover it. Avoid switching between Safari and Home Screen versions until backups are exported.</div><div class="flex"><label>Workout date <input aria-label="Workout date" type="date" value="'+esc(selectedWorkoutDate)+'" onchange="chooseWorkoutDate(this.value)"></label><button onclick="chooseWorkoutDate(date())">Today</button></div><p id="save-state" class="muted">Loaded stored session for '+esc(selectedWorkoutDate)+'</p><div class="callout">Active phase: '+esc(currentPhase().label)+' (week '+programWeek()+'). Load suggestions use your previous logged sets. Keep 1–3 reps in reserve and avoid symptoms.</div><div class="days">'+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((s,i)=>'<button class="'+(i===day?"sel":"")+'" onclick="choose('+i+')">'+s+'</button>').join("")+'</div><h2>'+esc(ex[0])+'</h2><p>60–75 min lifting · start 2–3 reps in reserve · build load only with controlled technique. Avoid symptomatic straining.</p>'+(!ex[1].length?'<div class="callout">Optional easy walk, gentle mobility or rest.</div>':ex[1].map((x,i)=>'<div class="item"><strong>'+esc(x[0])+'</strong> <small>'+x[1]+' × '+esc(x[2])+'</small>'+suggestion(x[0],x[2])+Array.from({length:x[1]},(_,j)=>{let v=d[i+"_"+j]||{};return '<div class="set"><small>'+(j+1)+'</small><input type="number" aria-label="Weight pounds" placeholder="lb" min="0" value="'+esc(v.w??"")+'" oninput="setval('+i+','+j+',\'w\',this.value)"><input type="number" aria-label="Repetitions" placeholder="reps" min="0" value="'+esc(v.r??"")+'" oninput="setval('+i+','+j+',\'r\',this.value)"><input type="number" aria-label="Reps in reserve" placeholder="RIR" min="0" value="'+esc(v.rir??"")+'" oninput="setval('+i+','+j+',\'rir\',this.value)"><input type="checkbox" aria-label="Completed" '+(v.done?"checked":"")+' oninput="setval('+i+','+j+',\'done\',this.checked)"></div>'}).join("")+'</div>').join("")+'<button class="gold" onclick="finish()">Mark workout complete</button>')+'</section><section><h2>Previous entries and recovery</h2><p class="muted">Tap an entry to reopen its date and day, including workouts not marked complete.</p>'+tracked.slice(0,30).map(x=>'<div class="entry"><button onclick="openStored(\''+esc(x.date)+'\','+Number(x.day??guessDay(x.name))+')">'+esc(x.date)+' · '+esc(x.name)+' · '+(x.status==="complete"?"Complete":"Autosaved")+' · '+x.sets.length+' sets</button><div class="muted">'+x.sets.slice(0,8).map(s=>esc(s.exercise)+' '+esc(s.weight)+'lb × '+esc(s.reps)+' · ').join("")+'</div></div>').join("")+recovered.slice(0,30).map(([key,v])=>'<div class="entry"><button onclick="openDraft(\''+esc(key)+'\')">Recover '+esc(key)+' · '+Object.keys(v).length+' entries</button></div>').join("")+'</section>'}
+return '<section><h2>Training command center</h2><p class="muted">Storage is LOCAL to this exact browser profile, not your GitHub account. Use regular Safari consistently, or export and import when switching to the Home Screen app.</p><div class="callout">✅ Every weight, rep and RIR change is saved automatically on this device. Tap a previous workout below to view and recover it. Avoid switching between Safari and Home Screen versions until backups are exported.</div><div class="flex"><label>Workout date <input aria-label="Workout date" type="date" value="'+esc(selectedWorkoutDate)+'" onchange="chooseWorkoutDate(this.value)"></label><button onclick="chooseWorkoutDate(date())">Today</button></div><p id="save-state" class="muted">Loaded stored session for '+esc(selectedWorkoutDate)+'</p><div class="callout">Active phase: '+esc(currentPhase().label)+' (week '+programWeek()+'). Load suggestions use your previous logged sets. Keep 1–3 reps in reserve and avoid symptoms.</div><div class="days">'+["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((s,i)=>'<button class="'+(i===day?"sel":"")+'" onclick="choose('+i+')">'+s+'</button>').join("")+'</div><h2>'+esc(ex[0])+'</h2><p>60–75 min lifting · start 2–3 reps in reserve · build load only with controlled technique. Avoid symptomatic straining.</p>'+(!ex[1].length?'<div class="callout">Optional easy walk, gentle mobility or rest.</div>':ex[1].map((x,i)=>'<div class="item"><strong>'+esc(x[0])+'</strong> <small>'+x[1]+' × '+esc(x[2])+'</small>'+suggestion(x[0],x[2])+Array.from({length:x[1]},(_,j)=>{let v=d[i+"_"+j]||{};return '<div class="set"><small>'+(j+1)+'</small><input type="number" aria-label="Weight pounds" placeholder="lb" min="0" value="'+esc(v.w??"")+'" oninput="setval('+i+','+j+',\'w\',this.value)"><input type="number" aria-label="Repetitions" placeholder="reps" min="0" value="'+esc(v.r??"")+'" oninput="setval('+i+','+j+',\'r\',this.value)"><input type="number" aria-label="Reps in reserve" placeholder="RIR" min="0" value="'+esc(v.rir??"")+'" oninput="setval('+i+','+j+',\'rir\',this.value)"><input type="checkbox" aria-label="Completed" '+(v.done?"checked":"")+' oninput="setval('+i+','+j+',\'done\',this.checked)"></div>'}).join("")+'</div>').join("")+'<button class="gold" onclick="finish()">Mark workout complete</button>')+'</section><section><h2>Previous entries and recovery</h2><p class="muted">Tap an entry to reopen its date and day, including workouts not marked complete.</p>'+tracked.slice(0,30).map(x=>'<div class="entry"><button onclick="openStored(\''+esc(x.date)+'\','+Number(x.day??guessDay(x.name))+')">'+esc(x.date)+' · '+esc(x.name)+' · '+(x.status==="complete"?"Complete":"Autosaved")+' · '+x.sets.length+' sets</button><div class="muted">'+x.sets.slice(0,8).map(s=>esc(s.exercise)+' '+esc(s.weight)+'lb × '+esc(s.reps)+' · ').join("")+'</div></div>').join("")+recovered.slice(0,30).map(([key,v])=>'<div class="entry"><button onclick="openDraft(\''+esc(key)+'\')">Recover '+esc(key)+' · '+Object.keys(v).length+' entries</button></div>').join("")+'</section>'}
 let selectedWorkoutDate=date();
 function guessDay(name){let i=EX.findIndex(x=>x[0]===name);return Math.max(0,i)}
-function chooseWorkoutDate(value){if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(value))return;selectedWorkoutDate=value;render()}
-function openStored(d,i){selectedWorkoutDate=d;db.selected=i;save();render();window.scrollTo(0,0)}
+function chooseWorkoutDate(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(value))return;selectedWorkoutDate=value;render()}
+function openStored(d,i){
+ selectedWorkoutDate=d;db.selected=i;
+ const id=d+"-"+i;
+ if(!db.drafts[id]){
+  const w=db.workouts.find(x=>x.id===id||x.date===d&&x.day===i);
+  if(w){const draft={};(w.sets||[]).forEach(s=>{
+   const index=phaseExercise(i)[1].findIndex(ex=>ex[0]===s.exercise);
+   if(index>=0)draft[index+"_"+Math.max(0,Number(s.set||1)-1)]={w:s.weight,r:s.reps,rir:s.rir,done:!!s.done};
+  });db.drafts[id]=draft}
+ }
+ save();render();window.scrollTo(0,0)
+}
 function openDraft(key){
- const m=key.match(/^(\\d{4}-\\d{2}-\\d{2})-(\\d)$/);
+ const m=key.match(/^(\d{4}-\d{2}-\d{2})-(\d)$/);
  if(!m)return alert("Unrecognized draft key; use Settings to export a JSON backup.");
  selectedWorkoutDate=m[1];db.selected=Math.min(6,Math.max(0,Number(m[2])));save();render();window.scrollTo(0,0)
 }
@@ -70,7 +100,7 @@ function finish(){
  const idx=db.workouts.findIndex(w=>w.id===id);if(idx<0)return;
  db.workouts[idx].status="complete";
  if(!save())return;
- alert("Workout complete. Your sets remain saved and can be reopened from Previous entries.");render()
+ render();if(confirm("Workout saved and verified on this browser. Download a backup now to protect your progress?"))backup()
 }
 function inputs(spec){return '<div class="fields">'+spec.map(([name,label,type,value])=>'<div><label>'+label+'</label><input name="'+name+'" type="'+(type||"number")+'" value="'+esc(value??"")+'" '+(type==="text"?'':"")+' required></div>').join("")+'</div>'}
 function nutrition(){let t=sum();return '<div class="tiles">'+[["Calories","cal","kcal"],["Protein","p","g"],["Carbs","c","g"],["Fat","f","g"]].map(([label,key,u])=>'<section><small>'+label+'</small><div class="number">'+Math.round(t[key])+'</div><small>/ '+db.targets[key]+' '+u+'</small>'+bar(t[key],db.targets[key])+'</section>').join("")+'</div><section><h2>Log food</h2><form onsubmit="meal(event)">'+inputs([["date","Date","date",date()],["name","Food","text",""],["cal","Calories","number",""],["p","Protein g","number",""],["c","Carbs g","number",""],["f","Fat g","number",""]])+'<p><button class="gold">Save meal</button></p></form><div class="callout">Starting target ~2,350 kcal; 190 g protein; 245 g carbs; 68 g fat. Keep weekends accountable. Adjust only after sufficient trend data.</div></section><section><h2>Recent meals</h2>'+db.meals.slice(-15).reverse().map(x=>'<div class="entry">'+esc(x.date)+' · <strong>'+esc(x.name)+'</strong> · '+x.cal+' kcal · '+x.p+'P '+x.c+'C '+x.f+'F</div>').join("")+'</section>'}
@@ -80,9 +110,13 @@ function walk(e){e.preventDefault();db.walks.push(Object.fromEntries(new FormDat
 function measure(){return '<section><h2>Body measurements</h2><p>Consistent morning measurements; compare 7-day weight averages, waist, strength, and progress photos.</p><form onsubmit="bodylog(event)">'+inputs([["date","Date","date",date()],["weight","Weight lb","number",recent(db.measurements,"weight",198)],["waist","Waist in","number",recent(db.measurements,"waist",40)],["neck","Neck in","number",15.5]])+'<p><button class="gold">Save measurements</button></p></form></section><section><h2>Check-in history</h2>'+db.measurements.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(x=>'<div class="entry"><strong>'+esc(x.date)+'</strong> · '+esc(x.weight)+' lb · waist '+esc(x.waist)+'″ · neck '+esc(x.neck)+'″</div>').join("")+'</section>'}
 function bodylog(e){e.preventDefault();db.measurements.push(Object.fromEntries(new FormData(e.target).entries()));save();render()}
 function roadmap(){return '<section><h2>52-week production plan</h2><div class="callout">Current: '+esc(currentPhase().label)+' · Week '+programWeek()+' / 52. '+esc(currentPhase().focus)+'</div>'+[["1–8","Foundation","Establish strength, volume and a sustainable fat-loss trend."],["9–16","Forge","Progress overload; prioritize delts, upper chest, back and arms."],["17–28","Build","Reassess calories, strength and physique; maintain or build as appropriate."],["29–40","Refine","Continue muscle development, waist reduction and recovery."],["41–48","Reveal","Incrementally sharpen definition without depleting muscle."],["49–52","Camera-ready","Stable food, hydration, performance and presentation; no extreme dehydration."]].map(x=>'<div class="entry"><strong>Weeks '+x[0]+' · '+x[1]+'</strong><p>'+x[2]+'</p></div>').join("")+'</section>'}
-function settings(){return '<section><h2>Targets and timeline</h2><form onsubmit="targets(event)">'+inputs([["start","Start date","date",db.start],["cal","Calories","number",db.targets.cal],["p","Protein g","number",db.targets.p],["c","Carbs g","number",db.targets.c],["f","Fat g","number",db.targets.f]])+'<p><button class="gold">Save settings</button></p></form></section><section><h2>Privacy & backup</h2><p>GitHub Pages hosts only the app code. Your entries stay in this browser, without cloud sync. Export before changing devices or clearing browser data.</p><button class="gold" onclick="backup()">Export JSON backup</button> <button onclick="csv()">Export workout CSV</button><p><label>Import JSON backup <input type="file" accept=".json" onchange="restore(event)"></label></p><button onclick="wipe()">Clear local data</button></section>'}
+function settings(){return '<section><h2>Targets and timeline</h2><form onsubmit="targets(event)">'+inputs([["start","Start date","date",db.start],["cal","Calories","number",db.targets.cal],["p","Protein g","number",db.targets.p],["c","Carbs g","number",db.targets.c],["f","Fat g","number",db.targets.f]])+'<p><button class="gold">Save settings</button></p></form></section><section><h2>Privacy & backup</h2><div class="callout" id="diagnostic">Storage: '+esc(storageIssue||'No errors reported')+' · Recorded workouts: '+db.workouts.length+' · Unfinished date entries: '+Object.keys(db.drafts).length+'</div><button onclick="verifyPersistence()">Test save and read-back</button><p>GitHub Pages hosts only the app code. Your entries stay in this browser, without cloud sync. Export before changing devices or clearing browser data.</p><button class="gold" onclick="backup()">Export JSON backup</button> <button onclick="csv()">Export workout CSV</button><p><label>Import JSON backup <input type="file" accept=".json" onchange="restore(event)"></label></p><button onclick="wipe()">Clear local data</button></section>'}
 function targets(e){e.preventDefault();let f=new FormData(e.target);db.start=f.get("start");for(let k of ["cal","p","c","f"])db.targets[k]=num(f.get(k));save();render()}
 function download(data,name,type){let url=URL.createObjectURL(new Blob([data],{type})),a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),2000)}
+function verifyPersistence(){
+ const nonce="thor-check-"+Date.now(),value="ok-"+Math.random();
+ try{localStorage.setItem(nonce,value);const ok=localStorage.getItem(nonce)===value;localStorage.removeItem(nonce);alert(ok?"Storage test passed in THIS browser. This does not guarantee long-term persistence or cross-device sync.":"Storage read-back failed.")}catch(e){alert("Storage test failed: "+e.message)}
+}
 function backup(){download(JSON.stringify(db,null,2),"project-thor-"+date()+".json","application/json")}
 function csv(){let rows=[["date","workout","exercise","weight_lb","reps","rir"]];db.workouts.forEach(x=>x.sets.forEach(s=>rows.push([x.date,x.name,s.exercise,s.weight,s.reps,s.rir])));download(rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(",")).join("\n"),"thor-workouts.csv","text/csv")}
 function restore(e){let file=e.target.files[0];if(!file)return;let r=new FileReader();r.onload=()=>{try{let x=JSON.parse(r.result);if(!Array.isArray(x.workouts)||!Array.isArray(x.meals)||!Array.isArray(x.measurements))throw Error("Invalid backup");if(confirm("Replace current local records?")){db=x;for(const k in DEF)if(db[k]==null)db[k]=JSON.parse(JSON.stringify(DEF[k]));save();render()}}catch(e){alert(e.message)}};r.readAsText(file)}
