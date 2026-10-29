@@ -28,13 +28,13 @@ for(const k in DEF)if(db[k]==null)db[k]=JSON.parse(JSON.stringify(DEF[k]));
 let tab="dashboard";
 const $=id=>document.getElementById(id), date=()=>{let d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
 const esc=x=>String(x??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const num=x=>Number(x)||0, save=()=>{
+const num=x=>Number(x)||0, save=(sync=true)=>{
  if(storageIssue){alert(storageIssue);return false}
  try{
   const payload=JSON.stringify(db);
   localStorage.setItem("thor-app-v1",payload);
   if(localStorage.getItem("thor-app-v1")!==payload)throw Error("Read-back verification failed");
-  queueCloud();
+  if(sync)queueCloud();
   return true;
  }catch(e){
   storageIssue="Storage verification failed: "+String(e.message||e);
@@ -304,7 +304,7 @@ async function cloudInitializeUser(userId){
   const {data,error}=await cloudClient.from("thor_documents").select("content,revision").eq("owner_id",userId).eq("document_id","app/state").maybeSingle();
   if(error)throw error;
   db=mergeCloudState(data?.content||{},db);
-  if(!save())throw Error("Local storage is not writable. Export your data.");
+  if(!save(false))throw Error("Local storage is not writable. Export your data.");
   render();
   cloudReady=true;
   await cloudPush();
@@ -333,7 +333,7 @@ async function cloudPush(){
   },{onConflict:"owner_id,document_id"});
   if(writeError)throw writeError;
   db=mergeCloudState(db,merged);
-  if(!save())throw Error("Could not verify local copy after cloud sync");
+  if(!save(false))throw Error("Could not verify local copy after cloud sync");
   cloudLastSync=new Date().toLocaleString();
   cloudLabel("✓ Synced to cloud — "+cloudLastSync);
   if(tab==="settings")render();
