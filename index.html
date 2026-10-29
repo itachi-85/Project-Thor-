@@ -303,7 +303,9 @@ async function cloudInitializeUser(userId){
   cloudLabel("Loading cloud history and merging local entries…");
   const {data,error}=await cloudClient.from("thor_documents").select("content,revision").eq("owner_id",userId).eq("document_id","app/state").maybeSingle();
   if(error)throw error;
+  if(db._cloudOwner && db._cloudOwner!==userId){cloudLabel("Account mismatch — export a backup and sign in with your original account.");return}
   db=mergeCloudState(data?.content||{},db);
+  db._cloudOwner=userId;
   if(!save(false))throw Error("Local storage is not writable. Export your data.");
   render();
   cloudReady=true;
@@ -321,6 +323,7 @@ function queueCloud(){
 async function cloudPush(){
  if(!cloudClient||!cloudUser||!cloudReady)return;
  const uid=cloudUser.id;
+ if(db._cloudOwner && db._cloudOwner!==uid){cloudLabel("Account mismatch — cloud upload blocked");return}
  cloudQueued=false;cloudBusy=true;
  cloudLabel("Syncing to cloud…");
  try{
@@ -332,7 +335,10 @@ async function cloudPush(){
    revision:(Number(data?.revision)||0)+1,updated_at:new Date().toISOString()
   },{onConflict:"owner_id,document_id"});
   if(writeError)throw writeError;
+  const {data:verified,error:verificationError}=await cloudClient.from("thor_documents").select("revision").eq("owner_id",uid).eq("document_id","app/state").single();
+  if(verificationError||!verified||Number(verified.revision)<Number(data?.revision||0)+1)throw Error("Cloud read-back verification failed");
   db=mergeCloudState(db,merged);
+  db._cloudOwner=uid;
   if(!save(false))throw Error("Could not verify local copy after cloud sync");
   cloudLastSync=new Date().toLocaleString();
   cloudLabel("✓ Synced to cloud — "+cloudLastSync);
